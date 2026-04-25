@@ -11,14 +11,15 @@ class TaskListAPI(APIView):
     def post(self,request):
         serializer=TaskSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
+            serializer.save(user=request.user)
             return Response({
-                'message':'Task created successfully.'
-            },status=status.HTTP_200_OK)
+                'message':'Task created successfully.',
+                'data':serializer.data
+            },status=status.HTTP_201_CREATED)
         return Response(serializer.errors,status=status.HTTP_400_BAD_REQUEST)
     
     def get(self,request):
-        tasks=Task.objects.all().order_by('-completion_date')
+        tasks=Task.objects.filter(user=request.user).order_by('-completion_date','-id')
         serializer=TaskSerializer(tasks,many=True)
         return Response(serializer.data,status=status.HTTP_200_OK)
     
@@ -26,13 +27,13 @@ class TaskDetailAPI(APIView):
     permission_classes=[IsAuthenticated]
     # fetch a single task
     def get(self,request,pk):
-        task=get_object_or_404(Task,pk=pk)
+        task=get_object_or_404(Task,pk=pk,user=request.user)
         serializer=TaskSerializer(task)
         return Response(serializer.data,status=status.HTTP_200_OK)
     
     #Update task(Full update)
     def put(self,request,pk):
-        task=get_object_or_404(Task,pk=pk)
+        task=get_object_or_404(Task,pk=pk,user=request.user)
         serializer=TaskSerializer(task,data=request.data)
         if serializer.is_valid():
             serializer.save()
@@ -41,7 +42,7 @@ class TaskDetailAPI(APIView):
     
     #Partial Update
     def patch(self,request,pk):
-        task=get_object_or_404(Task,pk=pk)
+        task=get_object_or_404(Task,pk=pk,user=request.user)
         serializer=TaskSerializer(task,data=request.data,partial=True)
         if serializer.is_valid():
             serializer.save()
@@ -50,9 +51,6 @@ class TaskDetailAPI(APIView):
     
     #delete task
     def delete(self,request,pk):
-        task=get_object_or_404(Task,pk=pk)
-        try:
-            task.delete()
-            return Response({'mesaage':'Deleted Successfully'},status=status.HTTP_200_OK)
-        except Exception:
-            return Response({'errors':'Invalid Tokens'},status=status.HTTP_400_BAD_REQUEST)
+        task=get_object_or_404(Task,pk=pk,user=request.user)
+        task.delete()
+        return Response({'message':'Deleted Successfully'},status=status.HTTP_200_OK)
